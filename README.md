@@ -10,6 +10,8 @@ If you only hear sound, the test control reports whether desktop delivery is req
 
 Notifications show the project directory name as the title and a short body: **Finished**, the first pending question, **Approval needed**, or **Review plan**. Question previews collapse whitespace and stop at 180 characters. Sessions without a project directory use their display title.
 
+The browser tab icon also gets a red dot for these events. Returning to the tab, focusing its window, or interacting with the page clears it. This works in every DSH tab even when desktop notifications are disabled or blocked. The original favicon is restored when the dot clears or the plugin unloads.
+
 - A main thread changes from running to stopped, including normal completion, cancellation, and failure. Each run alerts once. Initial idle history and reconnect snapshots do not alert.
 - A main thread has a pending question, approval, or plan review. Each request alerts once; a simultaneous stop while that request is pending does not produce another alert.
 - Subagent threads stay silent. A manually forked conversation remains an independent main thread.
@@ -25,7 +27,7 @@ Build and pack this directory, then install the tarball through DSH:
 npm ci
 npm run check
 npm pack
-dsh plugin --profile web add /absolute/path/dsh-notifications-0.1.0.tgz
+dsh plugin --profile web add /absolute/path/dsh-notifications-0.1.1.tgz
 dsh web
 ```
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import { createTracker } from './tracker.js'
 import { createBrowser } from './browser.js'
+import { createTabBadge } from './tab-badge.js'
 import { en, zh } from './locales.js'
 
 const NS = 'dsh-notifications'
@@ -60,6 +61,7 @@ export function apply(ctx) {
   ctx.effect(() => ctx.locale.register(NS, { en, zh }))
   const t = ctx.locale.bind(NS)
   ctx.effect(() => {
+    const badge = createTabBadge(window)
     const browser = createBrowser({ win: window, t, open: id => {
       if (!ctx.sessions.list.getSnapshot().byId[id]) return
       ctx.sessions.open(id)
@@ -71,7 +73,7 @@ export function apply(ctx) {
       row: id => list.getSnapshot().byId[id],
       isChild: id => Boolean(ctx.sessions.subagentAddress(id)),
       pending: () => pending.getSnapshot(),
-      emit: event => browser.notify(event),
+      emit: event => { badge.mark(); browser.notify(event) },
     })
     const baseline = () => {
       const state = list.getSnapshot()
@@ -94,6 +96,6 @@ export function apply(ctx) {
       }, Controls)),
     ]
     baseline()
-    return () => { for (const dispose of disposers.reverse()) dispose(); browser.dispose() }
+    return () => { for (const dispose of disposers.reverse()) dispose(); browser.dispose(); badge.dispose() }
   })
 }

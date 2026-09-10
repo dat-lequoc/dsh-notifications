@@ -18,7 +18,7 @@ await context.route('**/plugins/**', async route => {
   if (body.includes('dsh-notifications.sender.v1')) {
     assert.ok(body.includes('    const baseline = () => {'))
     body = body.replace('    const baseline = () => {',
-      '    window.__notificationsQA = { tracker, ctx, browser };\n    const baseline = () => {')
+      '    window.__notificationsQA = { tracker, ctx, browser, badge };\n    const baseline = () => {')
     body = body.replace('      leader = true;', '      leader = true; window.__notificationsQALeader = true;')
   }
   await route.fulfill({ response, body })
@@ -73,11 +73,28 @@ try {
     const { ctx } = window.__notificationsQA
     return Object.values(ctx.sessions.list.getSnapshot().byId).find(row => !row.blank && row.origin !== 'subagent').id
   })
+  const originalIcons = await page.evaluate(() => [...document.querySelectorAll('link[rel~="icon"]')].map(node => node.outerHTML))
   await page.evaluate(id => {
     const { tracker } = window.__notificationsQA
     tracker.status(id, true); tracker.status(id, false); tracker.status(id, false)
   }, main)
   await expect.poll(() => page.evaluate(() => window.__notice.length)).toBe(3)
+  const iconUrl = await page.evaluate(() => document.querySelector('link[rel~="icon"]').href)
+  assert.ok(iconUrl.startsWith('data:image/png;base64,'))
+  await writeFile('verification/tab-dot.png', Buffer.from(iconUrl.split(',')[1], 'base64'))
+  const pixel = await page.evaluate(async () => {
+    const icon = new Image()
+    icon.src = document.querySelector('link[rel~="icon"]').href
+    await icon.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 32
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(icon, 0, 0)
+    return [...ctx.getImageData(24, 8, 1, 1).data]
+  })
+  assert.deepEqual(pixel, [239, 35, 60, 255])
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('link[rel~="icon"]')].map(node => node.outerHTML)), originalIcons)
   const reasons = await page.evaluate(id => {
     const { ctx, tracker } = window.__notificationsQA
     const publish = ctx.uiSession.registerPendingInteraction(() => 1000)
@@ -102,6 +119,7 @@ try {
     tracker.status(id, true); tracker.status(id, false)
   }, main)
   assert.equal(await second.evaluate(() => window.__notice.length), 0)
+  assert.ok(await second.evaluate(() => document.querySelector('link[rel~="icon"]').href.startsWith('data:image/png')))
   await page.close()
   await second.waitForFunction(() => window.__notificationsQALeader === true)
   await second.evaluate(id => {
@@ -116,11 +134,20 @@ try {
   await second.waitForFunction(() => window.__notificationsQA)
   assert.equal(await second.evaluate(() => window.__notificationsQA.browser.getSnapshot().enabled), false)
   assert.equal(await second.evaluate(() => window.__notificationsQA.browser.getSnapshot().sound), false)
+  await second.waitForFunction(() => window.__notificationsQA.ctx.sessions.list.getSnapshot().phase === 'ready')
+  await second.evaluate(id => {
+    const { tracker } = window.__notificationsQA
+    tracker.status(id, true); tracker.status(id, false)
+  }, main)
+  assert.ok(await second.evaluate(() => document.querySelector('link[rel~="icon"]').href.startsWith('data:image/png')))
+  await second.evaluate(() => window.dispatchEvent(new Event('pointerdown')))
+  assert.ok(await second.evaluate(() => !document.querySelector('link[rel~="icon"]')?.href.startsWith('data:image/png')))
   assert.deepEqual(errors, [])
   await writeFile('verification/browser-report.json', JSON.stringify({ passed: true, errors,
     checks: ['permission click', 'native Notification construction', 'real AudioContext notes', 'settings test',
       'completion deduplication', 'question/approval/plan review', 'click navigation',
-      'two-tab suppression and takeover', 'mute/disable persistence'] }, null, 2))
+      'two-tab suppression and takeover', 'mute/disable persistence',
+      'red favicon pixels', 'favicon restored on focus and interaction', 'badge while desktop alerts disabled'] }, null, 2))
   console.log('Browser QA passed: permissions, native notifications, audio, attention, navigation, multiple tabs, persistence; zero page errors.')
 } catch (error) {
   if (!page.isClosed()) console.log(await page.evaluate(() => ({
