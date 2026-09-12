@@ -21,14 +21,21 @@ Keep a DSH tab open and connected. Desktop browser notifications are supported; 
 
 ## Install
 
-Build and pack this directory, then install the tarball through DSH:
+### Option 1: Direct from GitHub
+
+```sh
+dsh plugin --profile web add github:dat-lequoc/dsh-notifications
+dsh --profile web
+```
+
+### Option 2: Build and pack locally
 
 ```sh
 npm ci
 npm run check
 npm pack
-dsh plugin --profile web add /absolute/path/dsh-notifications-0.1.1.tgz
-dsh web
+dsh plugin --profile web add ./dsh-notifications-0.1.1.tgz
+dsh --profile web
 ```
 
 The package contains its built browser bundle. It uses DSH's `sessions`, `uiSession.pendingInteractions`, Remote session status events, locale dictionaries, `shell.overlay`, and `settings.general.item` extension points. Verified against local DSH `0.1.5-rc.1`. The host entry only enrolls the browser module; it exposes no server routes or model capabilities. No separate invariant provider is necessary because the plugin owns no mirrored Host state.
