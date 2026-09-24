@@ -68,7 +68,15 @@ export function apply(ctx) {
       ctx.layout.selectPanel(null)
     } })
     const list = ctx.sessions.list
-    const pending = ctx.uiSession.pendingInteractions
+    const pending = {
+      getSnapshot: () => new Map(
+        [...ctx.uiSession.sessionStatus.getSnapshot()]
+          .flatMap(([id, status]) => status.pendingInteraction === undefined
+            ? []
+            : [[id, status.pendingInteraction]]),
+      ),
+      subscribe: listener => ctx.uiSession.sessionStatus.subscribe(listener),
+    }
     const tracker = createTracker({
       row: id => list.getSnapshot().byId[id],
       isChild: id => Boolean(ctx.sessions.subagentAddress(id)),
